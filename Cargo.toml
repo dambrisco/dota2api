@@ -1,0 +1,9 @@
+[package]
+name = "dota2api_rust"
+version = "0.1.0"
+authors = ["Dan Ambrisco <dambrisco@gmail.com>"]
+
+[dependencies]
+hyper = "0.10"
+hyper-native-tls = "0.2.1"
+rustc-serialize = "0.3.22"
