@@ -1,5 +1,5 @@
 [package]
-name = "dota2api_rust"
+name = "dota2api"
 version = "0.1.0"
 authors = ["Dan Ambrisco <dambrisco@gmail.com>"]
 
