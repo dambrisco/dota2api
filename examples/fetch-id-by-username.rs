@@ -10,6 +10,8 @@ fn main() {
     };
     let api = Api::new(key);
     let vanity = args().skip(1).take(1).next().unwrap();
-    let steamid = api.resolve_vanity_url(vanity);
-    println!("{}", steamid);
+    match api.resolve_vanity_url(vanity) {
+        Ok(steamid) => println!("{}", steamid),
+        Err(_) => println!("shit broke")
+    }
 }
