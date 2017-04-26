@@ -2,12 +2,12 @@ use hyper;
 use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper_native_tls::NativeTlsClient;
-use std::io::Read;
-use std::result::*;
 use json;
 use json::JsonValue as Json;
-use std::io;
-use std::num;
+use std::{ io, num, fmt, error };
+use std::error::Error;
+use std::io::Read;
+use std::result::*;
 
 static HOST: &'static str = "https://api.steampowered.com";
 static VERSION: &'static str = "V001";
@@ -118,5 +118,45 @@ impl ApiError {
 
     fn from_str(error: &str) -> ApiError {
         ApiError::StringError(error.to_string())
+    }
+}
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use api::ApiError::*;
+
+        match *self {
+            JsonError(ref e) => e.fmt(f),
+            IoError(ref e) => e.fmt(f),
+            HyperError(ref e) => e.fmt(f),
+            ParseIntError(ref e) => e.fmt(f),
+            StringError(ref s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl error::Error for ApiError {
+    fn description(&self) -> &str {
+        use api::ApiError::*;
+
+        match *self {
+            JsonError(ref e) => e.description(),
+            IoError(ref e) => e.description(),
+            HyperError(ref e) => e.description(),
+            ParseIntError(ref e) => e.description(),
+            StringError(ref s) => s,
+        }
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        use api::ApiError::*;
+
+        match *self {
+            JsonError(ref e) => e.cause(),
+            IoError(ref e) => e.cause(),
+            HyperError(ref e) => e.cause(),
+            ParseIntError(ref e) => e.cause(),
+            StringError(_) => None,
+        }
     }
 }
