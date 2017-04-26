@@ -1,7 +1,7 @@
 extern crate dota2api;
 
 use std::env::*;
-use dota2api::api::Api;
+use dota2api::Api;
 
 fn main() {
     let key = match var("STEAM_API_KEY") {
