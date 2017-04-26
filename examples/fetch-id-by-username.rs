@@ -12,6 +12,6 @@ fn main() {
     let vanity = args().skip(1).take(1).next().unwrap();
     match api.resolve_vanity_url(vanity) {
         Ok(steamid) => println!("{}", steamid),
-        Err(_) => println!("shit broke")
+        Err(ref e) => println!("{}", e)
     }
 }

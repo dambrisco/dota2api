@@ -1,16 +1,17 @@
+pub mod error;
+mod url;
+mod route;
+
 use hyper;
 use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper_native_tls::NativeTlsClient;
 use json;
 use json::JsonValue as Json;
-use std::{ io, num, fmt, error };
-use std::error::Error;
 use std::io::Read;
 use std::result::*;
-
-static HOST: &'static str = "https://api.steampowered.com";
-static VERSION: &'static str = "V001";
+use api::error::ApiError;
+use api::url::Url;
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
@@ -25,138 +26,37 @@ impl Api {
     }
 
     pub fn resolve_vanity_url(self, vanity_url: String) -> ApiResult<u64> {
-        let json =  Api::get(Url::ResolveVanityUrl.value(), &[("key".to_owned(), self.api_key.to_owned()), ("vanityurl".to_owned(), vanity_url)]);
+        let json =  Api::get(
+            Url::ResolveVanityUrl.value(),
+            &[("key", self.api_key.to_owned()), ("vanityurl", vanity_url)]);
         return match json {
             Err(e) => Err(e),
             Ok(json) => return match json["response"]["steamid"].as_str() {
-                None => Err(ApiError::from_str("json structure did not match expected format")),
+                None => Err(ApiError::StrError("json structure did not match expected format")),
                 Some(s) => match s.parse::<u64>() {
-                    Err(e) => Err(ApiError::from_parseint(e)),
+                    Err(e) => Err(ApiError::ParseIntError(e)),
                     Ok(u) => Ok(u)
                 }
             }
         };
     }
 
-    fn get(mut url: hyper::Url, arguments: &[(String, String)]) -> Result<Json, ApiError> {
+    fn get(mut url: hyper::Url, arguments: &[(&str, String)]) -> Result<Json, ApiError> {
         let ssl = NativeTlsClient::new().unwrap();
         let connector = HttpsConnector::new(ssl);
         let client = Client::with_connector(connector);
         for item in arguments.iter() {
-            url.query_pairs_mut().append_pair(&item.0, &item.1);
+            url.query_pairs_mut().append_pair(item.0, &item.1);
         }
         let mut res = match client.get(url).send() {
             Ok(res) => res,
-            Err(e) => return Err(ApiError::from_hyper(e)),
+            Err(e) => return Err(ApiError::HyperError(e)),
         };
         let mut s = String::new();
         match res.read_to_string(&mut s) {
-            Err(e) => return Err(ApiError::from_io(e)),
+            Err(e) => return Err(ApiError::IoError(e)),
             Ok(_) => {}
         }
-        return json::parse(&s).map_err(|e| ApiError::from_json(e));
-    }
-}
-
-#[derive(Debug)]
-pub enum Url {
-    ResolveVanityUrl,
-}
-
-impl Url {
-    fn value(&self) -> hyper::Url {
-        let path = match *self {
-            Url::ResolveVanityUrl => "ResolveVanityURL",
-        };
-        let url_string = format!("{}/{}/{}/{}", HOST, Route::ISteamUser.value(), path, VERSION);
-        let url = match hyper::Url::parse(&url_string) {
-            Ok(url) => url,
-            Err(_) => panic!("Unable to parse url"),
-        };
-        return url;
-    }
-}
-
-#[derive(Debug)]
-enum Route {
-    ISteamUser,
-}
-
-impl Route {
-    fn value(&self) -> String {
-        return match *self {
-            Route::ISteamUser => "ISteamUser".to_string(),
-        };
-    }
-}
-
-#[derive(Debug)]
-pub enum ApiError {
-    JsonError(json::Error),
-    IoError(io::Error),
-    HyperError(hyper::Error),
-    ParseIntError(num::ParseIntError),
-    StringError(String)
-}
-
-impl ApiError {
-    fn from_json(error: json::Error) -> ApiError {
-        ApiError::JsonError(error)
-    }
-
-    fn from_io(error: io::Error) -> ApiError {
-        ApiError::IoError(error)
-    }
-
-    fn from_hyper(error: hyper::Error) -> ApiError {
-        ApiError::HyperError(error)
-    }
-
-    fn from_parseint(error: num::ParseIntError) -> ApiError {
-        ApiError::ParseIntError(error)
-    }
-
-    fn from_str(error: &str) -> ApiError {
-        ApiError::StringError(error.to_string())
-    }
-}
-
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use api::ApiError::*;
-
-        match *self {
-            JsonError(ref e) => e.fmt(f),
-            IoError(ref e) => e.fmt(f),
-            HyperError(ref e) => e.fmt(f),
-            ParseIntError(ref e) => e.fmt(f),
-            StringError(ref s) => write!(f, "{}", s),
-        }
-    }
-}
-
-impl error::Error for ApiError {
-    fn description(&self) -> &str {
-        use api::ApiError::*;
-
-        match *self {
-            JsonError(ref e) => e.description(),
-            IoError(ref e) => e.description(),
-            HyperError(ref e) => e.description(),
-            ParseIntError(ref e) => e.description(),
-            StringError(ref s) => s,
-        }
-    }
-
-    fn cause(&self) -> Option<&Error> {
-        use api::ApiError::*;
-
-        match *self {
-            JsonError(ref e) => e.cause(),
-            IoError(ref e) => e.cause(),
-            HyperError(ref e) => e.cause(),
-            ParseIntError(ref e) => e.cause(),
-            StringError(_) => None,
-        }
+        return json::parse(&s).map_err(|e| ApiError::JsonError(e));
     }
 }
