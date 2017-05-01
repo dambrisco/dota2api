@@ -1,15 +1,30 @@
 use std::{ io, num, fmt, error };
 use hyper;
-use json;
+use serde_json;
 
 #[derive(Debug)]
 pub enum ApiError {
-    JsonError(json::Error),
+    JsonError(serde_json::Error),
     IoError(io::Error),
     HyperError(hyper::Error),
     ParseIntError(num::ParseIntError),
     StringError(String),
     StrError(&'static str),
+}
+
+impl ApiError {
+    pub fn get_type(&self) -> &str {
+        use api::ApiError::*;
+
+        match *self {
+            JsonError(ref e) => "JsonError",
+            IoError(ref e) => "IoError",
+            HyperError(ref e) => "HyperError",
+            ParseIntError(ref e) => "ParseIntError",
+            StringError(ref s) => "StringError",
+            StrError(ref s) => "StrError",
+        }
+    }
 }
 
 impl fmt::Display for ApiError {
